@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floor Plan Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #toolbar {
+            width: 200px;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .shape-btn {
+            padding: 12px;
+            background: #34495e;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .shape-btn:hover {
+            background: #4a5f7f;
+        }
+        
+        .shape-btn:active {
+            background: #5a7fa5;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #34495e;
+        }
+        
+        .control-btn {
+            padding: 10px;
+            background: #c0392b;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .control-btn:hover {
+            background: #e74c3c;
+        }
+        
+        .measurements {
+        }
+        
+        .measurements label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            margin-top: 10px;
+        }
+        
+        .measurements input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #34495e;
+            border-radius: 4px;
+            background: #34495e;
+            color: white;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .measurements input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .measurements .shape-btn {
+            margin-top: 10px;
+        }
+        
+        .zoom-controls {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #34495e;
+        }
+        
+        .zoom-controls .shape-btn {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .zoom-display {
+            background: #34495e;
+            padding: 10px;
+            text-align: center;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .file-controls {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #34495e;
+        }
+        
+        .file-controls .shape-btn {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: #ecf0f1;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #canvas {
+            background: white;
+            cursor: crosshair;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: block;
+        }
+        
+        .instructions {
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <div class="measurements">
+            <h2>Measurements</h2>
+            <label for="width">Width:</label>
+            <input type="number" id="width" placeholder="px" min="1">
+            
+            <label for="height">Height:</label>
+            <input type="number" id="height" placeholder="px" min="1">
+            
+            <label for="shapeLabel">Label (optional):</label>
+            <input type="text" id="shapeLabel" placeholder="Enter label">
+            
+            <button class="shape-btn" id="rectangleBtn" onclick="addOrEditRectangle()">Add Rectangle</button>
+            
+            <hr style="border: none; border-top: 1px solid #34495e; margin: 15px 0;">
+            
+            <label for="radius">Radius:</label>
+            <input type="number" id="radius" placeholder="px" min="1">
+            
+            <label for="circleLabel">Label (optional):</label>
+            <input type="text" id="circleLabel" placeholder="Enter label">
+            
+            <button class="shape-btn" id="circleBtn" onclick="addOrEditCircle()">Add Circle</button>
+        </div>
+        
+        <div class="controls">
+            <h2>Controls</h2>
+            <button class="control-btn" onclick="copySelected()">Copy Shape</button>
+            <button class="control-btn" onclick="clearCanvas()">Clear All</button>
+            <button class="control-btn" onclick="deleteSelected()">Delete Selected</button>
+        </div>
+        
+        <div class="file-controls">
+            <h2>File</h2>
+            <button class="shape-btn" onclick="saveDrawing()">Save Drawing</button>
+            <button class="shape-btn" onclick="document.getElementById('fileInput').click()">Load Drawing</button>
+            <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadDrawing(event)">
+        </div>
+        
+        <div class="zoom-controls">
+            <h2>Zoom</h2>
+            <div class="zoom-display" id="zoomDisplay">100%</div>
+            <button class="shape-btn" onclick="zoomIn()">Zoom In (+)</button>
+            <button class="shape-btn" onclick="zoomOut()">Zoom Out (-)</button>
+            <button class="shape-btn" onclick="resetZoom()">Reset Zoom</button>
+        </div>
+        
+        <div class="instructions">
+            <strong>How to use:</strong><br>
+            1. Enter measurements and click Add Rectangle/Circle<br>
+            2. Click shapes to select/edit them<br>
+            3. Scroll to zoom in/out<br>
+            4. Save/Load your drawings
+        </div>
+    </div>
+    
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let shapes = [];
+        let isDragging = false;
+        let draggedShape = null;
+        let dragOffsetX, dragOffsetY;
+        let selectedShapeIndex = -1;
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        
+        // Resize canvas to fill container
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            redraw();
+        }
+        
+        // Initial resize and setup listener
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        canvas.addEventListener('wheel', handleWheel);
+        
+        function getCanvasCoords(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (clientX - rect.left - translateX) / scale;
+            const y = (clientY - rect.top - translateY) / scale;
+            return { x, y };
+        }
+        
+        function handleWheel(e) {
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+            const newScale = Math.min(Math.max(0.1, scale * zoom), 10);
+            
+            // Zoom towards mouse position
+            translateX = mouseX - (mouseX - translateX) * (newScale / scale);
+            translateY = mouseY - (mouseY - translateY) * (newScale / scale);
+            
+            scale = newScale;
+            updateZoomDisplay();
+            redraw();
+        }
+        
+        function zoomIn() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            const newScale = Math.min(scale * 1.2, 10);
+            translateX = centerX - (centerX - translateX) * (newScale / scale);
+            translateY = centerY - (centerY - translateY) * (newScale / scale);
+            
+            scale = newScale;
+            updateZoomDisplay();
+            redraw();
+        }
+        
+        function zoomOut() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            const newScale = Math.max(scale * 0.8, 0.1);
+            translateX = centerX - (centerX - translateX) * (newScale / scale);
+            translateY = centerY - (centerY - translateY) * (newScale / scale);
+            
+            scale = newScale;
+            updateZoomDisplay();
+            redraw();
+        }
+        
+        function resetZoom() {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateZoomDisplay();
+            redraw();
+        }
+        
+        function updateZoomDisplay() {
+            document.getElementById('zoomDisplay').textContent = Math.round(scale * 100) + '%';
+        }
+        
+        function addOrEditRectangle() {
+            const width = parseFloat(document.getElementById('width').value);
+            const height = parseFloat(document.getElementById('height').value);
+            const label = document.getElementById('shapeLabel').value.trim();
+            
+            if (!width || !height || width <= 0 || height <= 0) {
+                alert('Please enter valid width and height values');
+                return;
+            }
+            
+            if (selectedShapeIndex !== -1 && shapes[selectedShapeIndex].type === 'rectangle') {
+                // Edit existing rectangle
+                const shape = shapes[selectedShapeIndex];
+                shape.width = width;
+                shape.height = height;
+                shape.label = label;
+            } else {
+                // Add new rectangle in center of visible viewport
+                const centerX = (canvas.width / 2 - translateX) / scale;
+                const centerY = (canvas.height / 2 - translateY) / scale;
+                
+                shapes.push({
+                    type: 'rectangle',
+                    x: centerX - width / 2,
+                    y: centerY - height / 2,
+                    width: width,
+                    height: height,
+                    label: label
+                });
+            }
+            
+            redraw();
+            
+            // Clear inputs and deselect
+            clearInputs();
+            selectedShapeIndex = -1;
+            updateButtonLabels();
+        }
+        
+        function addOrEditCircle() {
+            const radius = parseFloat(document.getElementById('radius').value);
+            const label = document.getElementById('circleLabel').value.trim();
+            
+            if (!radius || radius <= 0) {
+                alert('Please enter a valid radius value');
+                return;
+            }
+            
+            if (selectedShapeIndex !== -1 && shapes[selectedShapeIndex].type === 'circle') {
+                // Edit existing circle
+                const shape = shapes[selectedShapeIndex];
+                shape.radius = radius;
+                shape.label = label;
+            } else {
+                // Add new circle in center of visible viewport
+                const centerX = (canvas.width / 2 - translateX) / scale;
+                const centerY = (canvas.height / 2 - translateY) / scale;
+                
+                shapes.push({
+                    type: 'circle',
+                    x: centerX,
+                    y: centerY,
+                    radius: radius,
+                    label: label
+                });
+            }
+            
+            redraw();
+            
+            // Clear inputs and deselect
+            clearInputs();
+            selectedShapeIndex = -1;
+            updateButtonLabels();
+        }
+        
+        function clearInputs() {
+            document.getElementById('width').value = '';
+            document.getElementById('height').value = '';
+            document.getElementById('shapeLabel').value = '';
+            document.getElementById('radius').value = '';
+            document.getElementById('circleLabel').value = '';
+        }
+        
+        function updateButtonLabels() {
+            const rectangleBtn = document.getElementById('rectangleBtn');
+            const circleBtn = document.getElementById('circleBtn');
+            
+            if (selectedShapeIndex !== -1) {
+                const shape = shapes[selectedShapeIndex];
+                if (shape.type === 'rectangle') {
+                    rectangleBtn.textContent = 'Edit Rectangle';
+                    circleBtn.textContent = 'Add Circle';
+                } else if (shape.type === 'circle') {
+                    rectangleBtn.textContent = 'Add Rectangle';
+                    circleBtn.textContent = 'Edit Circle';
+                }
+            } else {
+                rectangleBtn.textContent = 'Add Rectangle';
+                circleBtn.textContent = 'Add Circle';
+            }
+        }
+        
+        function populateInputsFromShape(shape) {
+            if (shape.type === 'rectangle') {
+                document.getElementById('width').value = Math.round(shape.width);
+                document.getElementById('height').value = Math.round(shape.height);
+                document.getElementById('shapeLabel').value = shape.label || '';
+                document.getElementById('radius').value = '';
+                document.getElementById('circleLabel').value = '';
+            } else if (shape.type === 'circle') {
+                document.getElementById('radius').value = Math.round(shape.radius);
+                document.getElementById('circleLabel').value = shape.label || '';
+                document.getElementById('width').value = '';
+                document.getElementById('height').value = '';
+                document.getElementById('shapeLabel').value = '';
+            }
+            updateButtonLabels();
+        }
+        
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        canvas.addEventListener('wheel', handleWheel);
+        
+        function handleMouseDown(e) {
+            const coords = getCanvasCoords(e.clientX, e.clientY);
+            const x = coords.x;
+            const y = coords.y;
+            
+            // Check if clicking on existing shape
+            const clickedShapeIndex = findShapeAtPoint(x, y);
+            
+            if (clickedShapeIndex !== -1) {
+                // Start dragging existing shape
+                isDragging = true;
+                selectedShapeIndex = clickedShapeIndex;
+                draggedShape = shapes[clickedShapeIndex];
+                
+                // Populate inputs with shape data
+                populateInputsFromShape(draggedShape);
+                
+                if (draggedShape.type === 'rectangle') {
+                    dragOffsetX = x - draggedShape.x;
+                    dragOffsetY = y - draggedShape.y;
+                } else if (draggedShape.type === 'circle') {
+                    dragOffsetX = x - draggedShape.x;
+                    dragOffsetY = y - draggedShape.y;
+                }
+                
+                redraw();
+                return;
+            }
+            
+            // Clicking on empty canvas - deselect and clear inputs
+            selectedShapeIndex = -1;
+            clearInputs();
+            updateButtonLabels();
+            redraw();
+        }
+        
+        function handleMouseMove(e) {
+            const coords = getCanvasCoords(e.clientX, e.clientY);
+            const x = coords.x;
+            const y = coords.y;
+            
+            if (isDragging && draggedShape) {
+                // Move the shape
+                if (draggedShape.type === 'rectangle') {
+                    draggedShape.x = x - dragOffsetX;
+                    draggedShape.y = y - dragOffsetY;
+                } else if (draggedShape.type === 'circle') {
+                    draggedShape.x = x - dragOffsetX;
+                    draggedShape.y = y - dragOffsetY;
+                }
+                
+                redraw();
+            }
+        }
+        
+        function handleMouseUp(e) {
+            if (isDragging) {
+                isDragging = false;
+                draggedShape = null;
+            }
+        }
+        
+        function findShapeAtPoint(x, y) {
+            let closestShapeIndex = -1;
+            let minDistance = Infinity;
+            
+            for (let i = 0; i < shapes.length; i++) {
+                const shape = shapes[i];
+                let distance;
+                
+                if (shape.type === 'rectangle') {
+                    // Check if point is inside rectangle
+                    if (x >= shape.x && x <= shape.x + shape.width &&
+                        y >= shape.y && y <= shape.y + shape.height) {
+                        // Calculate distance to nearest edge
+                        const distToLeft = x - shape.x;
+                        const distToRight = (shape.x + shape.width) - x;
+                        const distToTop = y - shape.y;
+                        const distToBottom = (shape.y + shape.height) - y;
+                        
+                        distance = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestShapeIndex = i;
+                        }
+                    }
+                } else if (shape.type === 'circle') {
+                    const dist = Math.sqrt(Math.pow(x - shape.x, 2) + Math.pow(y - shape.y, 2));
+                    if (dist <= shape.radius) {
+                        // Distance to border is the difference between radius and distance to center
+                        distance = shape.radius - dist;
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestShapeIndex = i;
+                        }
+                    }
+                }
+            }
+            
+            return closestShapeIndex;
+        }
+        
+        function redraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.translate(translateX, translateY);
+            ctx.scale(scale, scale);
+            
+            shapes.forEach((shape, index) => {
+                const isSelected = index === selectedShapeIndex;
+                
+                ctx.strokeStyle = isSelected ? '#e74c3c' : '#2c3e50';
+                ctx.fillStyle = isSelected ? 'rgba(231, 76, 60, 0.1)' : 'rgba(52, 152, 219, 0.1)';
+                ctx.lineWidth = (isSelected ? 3 : 2) / scale;
+                
+                if (shape.type === 'rectangle') {
+                    ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+                    ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                    
+                    // Draw label at center
+                    if (shape.label) {
+                        const centerX = shape.x + shape.width / 2;
+                        const centerY = shape.y + shape.height / 2;
+                        drawLabel(centerX, centerY, shape.label);
+                    }
+                } else if (shape.type === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(shape.x, shape.y, shape.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Draw label at center
+                    if (shape.label) {
+                        drawLabel(shape.x, shape.y, shape.label);
+                    }
+                }
+            });
+            
+            ctx.restore();
+        }
+        
+        function drawLabel(x, y, text) {
+            ctx.save();
+            
+            // Set font size based on zoom level
+            const fontSize = 14 / scale;
+            ctx.font = `${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Measure text for background
+            const metrics = ctx.measureText(text);
+            const padding = 4 / scale;
+            const bgWidth = metrics.width + padding * 2;
+            const bgHeight = fontSize + padding * 2;
+            
+            // Draw semi-transparent background
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(x - bgWidth / 2, y - bgHeight / 2, bgWidth, bgHeight);
+            
+            // Draw text
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillText(text, x, y);
+            
+            ctx.restore();
+        }
+        
+        function clearCanvas() {
+            if (confirm('Clear all shapes?')) {
+                shapes = [];
+                selectedShapeIndex = -1;
+                clearInputs();
+                updateButtonLabels();
+                redraw();
+            }
+        }
+        
+        function copySelected() {
+            if (selectedShapeIndex !== -1) {
+                const originalShape = shapes[selectedShapeIndex];
+                const offset = 20; // Offset the copy slightly so it's visible
+                
+                let newShape;
+                if (originalShape.type === 'rectangle') {
+                    newShape = {
+                        type: 'rectangle',
+                        x: originalShape.x + offset,
+                        y: originalShape.y + offset,
+                        width: originalShape.width,
+                        height: originalShape.height,
+                        label: originalShape.label
+                    };
+                } else if (originalShape.type === 'circle') {
+                    newShape = {
+                        type: 'circle',
+                        x: originalShape.x + offset,
+                        y: originalShape.y + offset,
+                        radius: originalShape.radius,
+                        label: originalShape.label
+                    };
+                }
+                
+                shapes.push(newShape);
+                
+                // Select the new shape
+                selectedShapeIndex = shapes.length - 1;
+                populateInputsFromShape(newShape);
+                
+                redraw();
+            } else {
+                alert('Please select a shape first');
+            }
+        }
+        
+        function deleteSelected() {
+            if (selectedShapeIndex !== -1) {
+                shapes.splice(selectedShapeIndex, 1);
+                selectedShapeIndex = -1;
+                clearInputs();
+                updateButtonLabels();
+                redraw();
+            }
+        }
+        
+        function saveDrawing() {
+            const drawingData = {
+                version: '1.0',
+                shapes: shapes,
+                metadata: {
+                    savedAt: new Date().toISOString(),
+                    shapeCount: shapes.length
+                }
+            };
+            
+            const json = JSON.stringify(drawingData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `floor-plan-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function loadDrawing(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const drawingData = JSON.parse(e.target.result);
+                    
+                    if (drawingData.shapes && Array.isArray(drawingData.shapes)) {
+                        shapes = drawingData.shapes;
+                        selectedShapeIndex = -1;
+                        redraw();
+                        alert(`Drawing loaded successfully! (${shapes.length} shapes)`);
+                    } else {
+                        alert('Invalid file format');
+                    }
+                } catch (error) {
+                    alert('Error loading file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset file input so the same file can be loaded again
+            event.target.value = '';
+        }
+        
+        redraw();
+    </script>
+</body>
+</html>
